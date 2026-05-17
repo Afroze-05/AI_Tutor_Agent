@@ -1,0 +1,26 @@
+Python Programming Tutorial
+
+Python is a high-level programming language known for its simplicity and readability.
+
+Variables in Python:
+- Variables are created by assignment: x = 5
+- No need to declare variable types
+- Python uses dynamic typing
+
+Data Types in Python:
+- Integer: Whole numbers like 42
+- Float: Decimal numbers like 3.14
+- String: Text enclosed in quotes like "Hello"
+- Boolean: True or False values
+
+Functions in Python:
+- Functions are defined using def keyword
+- Example: def greet(name): return f"Hello, {name}!"
+- Functions can have parameters and return values
+
+Example Code:
+def calculate_area(length, width):
+    area = length * width
+    return area
+
+# This is a test document for RAG system testing

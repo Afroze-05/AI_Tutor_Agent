@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+openai
+langchain
+reportlab
+python-multipart
+pdfplumber
+Pillow
+python-docx
+python-dotenv

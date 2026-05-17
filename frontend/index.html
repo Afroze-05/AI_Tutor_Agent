@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Learning Assistant Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="navy-theme">
+    <div class="app-layout">
+        <!-- Left Panel: Chat History -->
+        <aside class="left-panel">
+            <div class="panel-header">
+                <h2>History</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button id="newChatBtn" class="action-link">+ New Chat</button>
+                    <button id="clearChatBtn" class="action-link">Clear Chat</button>
+                </div>
+            </div>
+            <div id="historyContainer" class="history-container">
+                <p class="empty-text">No previous conversations</p>
+            </div>
+            <div class="panel-footer">
+                <div class="status-indicator">
+                    <span class="dot online"></span> AI System Online
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Panel: Chat Interface -->
+        <main class="center-panel">
+            <header class="chat-header">
+                <div class="bot-info">
+                    <div class="bot-avatar">AI</div>
+                    <div>
+                        <h1>Agentic AI Tutor</h1>
+                        <p>Multi-Agent Learning System</p>
+                    </div>
+                </div>
+            </header>
+
+            <div id="chatMessages" class="chat-messages">
+                <div class="message bot-message">
+                    <div class="msg-content">
+                        Hello! I am your <strong>Agentic AI Learning Assistant</strong>. 
+                        I can teach you programming topics, provide career roadmaps, and generate quizzes. 
+                        What would you like to learn today?
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <div class="input-wrapper">
+                    <input type="text" id="userInput" placeholder="Type a message or topic (e.g., 'What is React?')..." autocomplete="off">
+                    <button id="sendBtn">
+                        <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Panel: AI Control & Dashboard -->
+        <aside class="right-panel">
+            <div class="control-tabs">
+                <button class="tab-btn active" data-tab="summary">Summary</button>
+                <button class="tab-btn" data-tab="quiz">Quiz</button>
+                <button class="tab-btn" data-tab="documents">Documents</button>
+                <button class="tab-btn" data-tab="resume">Resume</button>
+            </div>
+
+            <div class="tab-content active" id="summaryTab">
+                <h3>Learning Progress</h3>
+                <div id="summaryList" class="dynamic-list">
+                    <p class="empty-text">Discuss topics to see a real-time summary here.</p>
+                </div>
+            </div>
+
+            <div class="tab-content" id="quizTab">
+                <h3>Assessment</h3>
+                <div id="quizArea" class="dynamic-list">
+                    <p class="empty-text">Request a quiz in the chat to start.</p>
+                </div>
+            </div>
+
+            <!-- Documents Tab -->
+            <div class="tab-content" id="documentsTab">
+                <h3>Document Library</h3>
+                <div id="documentList" class="dynamic-list">
+                    <p class="empty-text">Upload documents to enable RAG-powered answers.</p>
+                </div>
+                <div class="document-upload-box" style="margin-top:20px; border: 1px dashed var(--border-color); padding: 20px; border-radius: 12px; text-align: center;">
+                    <input type="file" id="documentUpload" accept=".pdf,.docx,.doc,.txt" hidden>
+                    <label for="documentUpload" style="cursor:pointer; color:var(--accent-purple); font-weight:600;">
+                        📄 Upload Document (PDF, DOCX, TXT)
+                    </label>
+                </div>
+                <div style="margin-top:15px; text-align:center;">
+                    <button id="clearDocumentsBtn" class="action-link" style="font-size:0.8rem;">Clear All Documents</button>
+                </div>
+            </div>
+
+            <!-- Resume Analysis Tab -->
+            <div class="tab-content" id="resumeTab">
+                <h3>Resume Analysis</h3>
+                <div id="resumeAnalysisArea" class="dynamic-list">
+                    <p class="empty-text">Upload your resume to get feedback.</p>
+                </div>
+                <div class="resume-upload-box" style="margin-top:20px; border: 1px dashed var(--border-color); padding: 20px; border-radius: 12px; text-align: center;">
+                    <input type="file" id="resumeUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" hidden>
+                    <label for="resumeUpload" style="cursor:pointer; color:var(--accent-purple); font-weight:600;">
+                        Upload Resume (PDF, Word, Image)
+                    </label>
+                </div>
+            </div>
+
+            <div class="action-footer">
+                <button id="downloadBtn" class="primary-btn" disabled>
+                    Download Summary PDF
+                </button>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button id="downloadChatTxt" class="action-link" style="background: rgba(255,255,255,0.05); padding: 8px 15px; border-radius: 6px; font-size: 0.8rem;">
+                        📄 Download Chat (TXT)
+                    </button>
+                    <button id="downloadChatPdf" class="action-link" style="background: rgba(255,255,255,0.05); padding: 8px 15px; border-radius: 6px; font-size: 0.8rem;">
+                        📋 Download Chat (PDF)
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loader" class="loader-overlay hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
