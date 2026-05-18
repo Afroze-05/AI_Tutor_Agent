@@ -27,10 +27,30 @@ FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 app = FastAPI(title="VidMentor AI Chatbot")
 
-# CORS Setup
+# CORS — allow local dev + deployed frontend (set FRONTEND_URL / CORS_ORIGINS on Render)
+def _cors_origins() -> List[str]:
+    origins: List[str] = []
+    frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if frontend_url:
+        origins.append(frontend_url)
+    extra = os.getenv("CORS_ORIGINS", "").strip()
+    if extra:
+        origins.extend(o.strip().rstrip("/") for o in extra.split(",") if o.strip())
+    # Local development defaults
+    origins.extend([
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ])
+    if not origins or os.getenv("CORS_ALLOW_ALL", "").lower() in ("1", "true", "yes"):
+        return ["*"]
+    return list(dict.fromkeys(origins))
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,9 +96,23 @@ async def startup_event():
     init_db()
     print("Database initialized successfully.")
 
-# Root route to serve index.html
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "vidmentor-api"}
+
+
+SERVE_STATIC = os.getenv("SERVE_STATIC", "true").lower() in ("1", "true", "yes")
+
+# Root route — API info when static UI is disabled; otherwise serve index.html
 @app.get("/")
 async def serve_frontend():
+    if not SERVE_STATIC:
+        return {
+            "service": "VidMentor AI API",
+            "health": "/health",
+            "docs": "/docs",
+        }
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
@@ -204,9 +238,18 @@ async def download_report(session_data: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Mount frontend directory for static assets (js, css) — must be last
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
+# Mount frontend static files when serving UI from the API (disable on Render API-only service)
+if SERVE_STATIC and os.path.isdir(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+
+    port = int(os.getenv("PORT", "8000"))
+    reload = os.getenv("ENV", "development") == "development"
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=reload,
+    )

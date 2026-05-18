@@ -1,0 +1,41 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# After deploy, set GROQ_API_KEY in the Render dashboard for ai-tutor-backend.
+services:
+  - type: web
+    name: ai-tutor-backend
+    runtime: python
+    plan: free
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SERVE_STATIC
+        value: "false"
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: ai-tutor-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: CORS_ORIGINS
+        fromService:
+          type: web
+          name: ai-tutor-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: ai-tutor-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: chmod +x ./build.sh && ./build.sh
+    staticPublishPath: .
+    envVars:
+      - key: AI_TUTOR_BACKEND_HOST
+        fromService:
+          type: web
+          name: ai-tutor-backend
+          property: host
