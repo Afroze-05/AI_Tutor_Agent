@@ -6,6 +6,7 @@ import faiss
 import numpy as np
 import pickle
 import os
+import traceback
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import json
@@ -52,6 +53,7 @@ class VectorStore:
                 print(f"Loaded existing index with {self.index.ntotal} vectors")
             except Exception as e:
                 print(f"Failed to load existing index: {str(e)}")
+                traceback.print_exc()
                 self._create_new_index()
         else:
             self._create_new_index()

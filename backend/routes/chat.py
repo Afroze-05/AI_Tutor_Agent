@@ -40,9 +40,19 @@ def get_rag_pipeline() -> RAGPipeline:
     """Get or create RAG pipeline instance"""
     global rag_pipeline
     if rag_pipeline is None:
-        # Initialize with Groq API key from environment
-        groq_api_key = os.getenv("GROQ_API_KEY")
-        rag_pipeline = RAGPipeline(groq_api_key=groq_api_key)
+        try:
+            # Initialize with Groq API key from environment
+            groq_api_key = os.getenv("GROQ_API_KEY")
+            if not groq_api_key:
+                print("WARNING: GROQ_API_KEY missing in /chat get_rag_pipeline")
+            rag_pipeline = RAGPipeline(groq_api_key=groq_api_key)
+        except Exception as e:
+            print(f"CRITICAL Error initializing RAG pipeline in chat: {str(e)}")
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to initialize AI Tutor service: {str(e)}"
+            )
     return rag_pipeline
 
 

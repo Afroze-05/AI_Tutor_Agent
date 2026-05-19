@@ -104,8 +104,24 @@ def _normalize_quiz_questions(questions: List[Dict[str, Any]]) -> List[Dict[str,
 # Initialize DB on startup
 @app.on_event("startup")
 async def startup_event():
-    init_db()
-    print("Database initialized successfully.")
+    print("--- Startup Validation ---")
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        print(f"✅ GROQ_API_KEY found (length: {len(groq_key)})")
+    else:
+        print("❌ GROQ_API_KEY MISSING")
+    
+    print(f"✅ BASE_DIR: {BASE_DIR}")
+    print(f"✅ FRONTEND_DIR: {FRONTEND_DIR}")
+    
+    try:
+        init_db()
+        print("✅ Database initialized successfully.")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {str(e)}")
+        traceback.print_exc()
+    
+    print("--- End Startup Validation ---")
 
 
 @app.get("/health")

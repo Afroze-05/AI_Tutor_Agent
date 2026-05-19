@@ -3,6 +3,7 @@ RAG Pipeline Service
 Integrates retrieval with generation using Groq API
 """
 import os
+import traceback
 from typing import List, Dict, Any, Optional
 from groq import Groq
 
@@ -277,11 +278,13 @@ Context from documents:
             if answer:
                 return answer
             else:
-                return "AI service temporarily unavailable. Please try again."
+                print("Error: Groq returned an empty response.")
+                return "AI service returned an empty response. Please check your query or try again."
             
         except Exception as e:
-            print("Groq Error:", str(e))
-            return "AI service temporarily unavailable. Please try again."
+            print(f"CRITICAL Groq Error: {str(e)}")
+            traceback.print_exc()
+            return f"AI service error: {type(e).__name__}. Please check backend logs or try again."
     
     def _generate_answer_fallback(self, question: str, chat_context: str) -> str:
         """Generate answer using general knowledge + Groq API"""
@@ -378,11 +381,13 @@ Rules:
             if answer:
                 return answer
             else:
-                return "AI service temporarily unavailable. Please try again."
+                print("Error: Groq returned an empty response (fallback).")
+                return "AI service returned an empty response. Please check your query or try again."
             
         except Exception as e:
-            print("Groq Error:", str(e))
-            return "AI service temporarily unavailable. Please try again."
+            print(f"CRITICAL Groq Error (fallback): {str(e)}")
+            traceback.print_exc()
+            return f"AI service error: {type(e).__name__}. Please check backend logs or try again."
     
     def _prepare_sources(self, search_results: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         """Prepare sources for display"""

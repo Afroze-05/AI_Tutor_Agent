@@ -2,6 +2,8 @@
 Agentic AI Learning Chatbot Core Logic
 Implements a multi-agent system: Chat, Tutor, Career, Quiz, Summary, History, and Report agents.
 """
+import os
+import traceback
 from typing import Dict, Any, List, Optional
 import json
 import os
@@ -252,8 +254,13 @@ Rules:
                     continue
                     
         except Exception as e:
-            print(f"❌ LLM generation error: {str(e)}")
-            raise
+            print(f"CRITICAL Agent Error: {str(e)}")
+            traceback.print_exc()
+            return {
+                "type": "error",
+                "message": f"AI service error: {type(e).__name__}. Please check backend logs.",
+                "data": None
+            }
 
     def _validate_quiz(self, questions: List[Dict[str, Any]]) -> bool:
         """Validate quiz structure"""

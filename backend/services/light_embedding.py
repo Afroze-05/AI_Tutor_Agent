@@ -4,6 +4,7 @@ Uses TF-IDF and semantic hashing for understanding without PyTorch dependency
 """
 import os
 import numpy as np
+import traceback
 from typing import List, Dict, Any, Optional
 import pickle
 from pathlib import Path
@@ -49,6 +50,7 @@ class LightEmbeddingService:
                 print(f"Loaded {len(self.embedding_cache)} cached embeddings")
             except Exception as e:
                 print(f"Failed to load cache: {str(e)}")
+                traceback.print_exc()
                 self.embedding_cache = {}
                 self.vocab = {}
                 self.idf_cache = {}
