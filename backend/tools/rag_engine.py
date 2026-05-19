@@ -4,6 +4,7 @@ Retrieval Augmented Generation for enhanced learning
 """
 import json
 import sqlite3
+import os
 from typing import Dict, List, Any, Optional, Tuple
 from .ai_summarizer import AISummarizer
 import re

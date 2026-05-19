@@ -5,6 +5,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from typing import Dict, Any, List
 import os
+import traceback
 import tempfile
 import shutil
 from pathlib import Path
@@ -110,6 +111,8 @@ async def upload_document(file: UploadFile = File(...)) -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
+        print(f"ERROR in /upload/document: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected error during upload: {str(e)}"
@@ -137,6 +140,8 @@ async def get_uploaded_documents() -> Dict[str, Any]:
         
     except Exception as e:
         # Return error details for debugging
+        print(f"ERROR in /upload/documents: {str(e)}")
+        traceback.print_exc()
         return {
             "success": False,
             "error": f"Failed to get documents: {str(e)}",
@@ -175,6 +180,8 @@ async def delete_document(filename: str) -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
+        print(f"ERROR in /upload/document/{filename}: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete document: {str(e)}"
@@ -199,6 +206,8 @@ async def get_system_stats() -> Dict[str, Any]:
         }
         
     except Exception as e:
+        print(f"ERROR in /upload/stats: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get system stats: {str(e)}"
@@ -225,6 +234,8 @@ async def clear_all_documents() -> Dict[str, Any]:
         }
         
     except Exception as e:
+        print(f"ERROR in /upload/clear: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to clear documents: {str(e)}"

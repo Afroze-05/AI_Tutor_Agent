@@ -4,6 +4,7 @@ Splits documents into chunks with overlap for better context
 """
 from typing import List, Dict, Any
 import re
+import os
 
 
 class TextSplitter:

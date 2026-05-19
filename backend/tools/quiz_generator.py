@@ -4,6 +4,7 @@ Auto-generates quizzes based on learning content
 """
 import json
 import random
+import os
 from typing import Dict, List, Any, Optional
 from .ai_summarizer import AISummarizer
 

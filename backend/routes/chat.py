@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 
 import time
+import os
+import traceback
 from collections import defaultdict
 
 from backend.services.rag_pipeline import RAGPipeline
@@ -139,6 +141,8 @@ async def chat_with_rag(request: ChatRequest, fastapi_request: Request) -> Dict[
         raise
     except Exception as e:
         # Return error details for debugging
+        print(f"ERROR in /chat/query: {str(e)}")
+        traceback.print_exc()
         return {
             "answer": f"Error: {str(e)}",
             "sources": [],
@@ -167,6 +171,8 @@ async def clear_chat_memory() -> Dict[str, Any]:
         }
         
     except Exception as e:
+        print(f"ERROR in /chat/clear-memory: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to clear chat memory: {str(e)}"
@@ -191,6 +197,8 @@ async def get_chat_memory() -> Dict[str, Any]:
         }
         
     except Exception as e:
+        print(f"ERROR in /chat/memory: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get chat memory: {str(e)}"
@@ -218,6 +226,8 @@ async def chat_health_check() -> Dict[str, Any]:
         }
         
     except Exception as e:
+        print(f"ERROR in /chat/health: {str(e)}")
+        traceback.print_exc()
         return {
             "success": False,
             "status": "unhealthy",
@@ -253,6 +263,8 @@ async def explain_more(last_answer: str) -> Dict[str, Any]:
         }
         
     except Exception as e:
+        print(f"ERROR in /chat/explain-more: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Error generating detailed explanation: {str(e)}"
@@ -345,10 +357,15 @@ async def download_chat_summary(format: str = "txt") -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error generating summary: {str(e)}"
-        )
+        print(f"ERROR in /chat/download-summary: {str(e)}")
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": f"Error generating download: {str(e)}",
+            "content": f"Error: {str(e)}",
+            "filename": f"error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            "format": format
+        }
 
 
 @router.post("/generate-summary", response_model=SummaryResponse)
@@ -394,7 +411,6 @@ async def generate_short_summary(request: SummaryRequest) -> Dict[str, Any]:
         return {"summary": summary}
         
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error generating summary: {str(e)}"
-        )
+        print(f"ERROR in /chat/generate-summary: {str(e)}")
+        traceback.print_exc()
+        return {"summary": f"Summary error: {str(e)}"}

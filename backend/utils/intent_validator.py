@@ -2,6 +2,7 @@
 Intent validation for technical domain restriction
 """
 import re
+import os
 from typing import Tuple, List
 
 # Technical keywords for fast validation

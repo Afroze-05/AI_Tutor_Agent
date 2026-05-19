@@ -3,6 +3,7 @@ Smart Study Assistant Roadmap Generator
 Creates personalized learning roadmaps for subjects
 """
 import json
+import os
 from typing import Dict, List, Any, Optional
 from .ai_summarizer import AISummarizer
 

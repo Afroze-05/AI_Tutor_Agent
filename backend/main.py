@@ -1,4 +1,5 @@
 import os
+import traceback
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
@@ -156,6 +157,7 @@ async def chat_endpoint(request: ChatRequest):
         return response
     except Exception as e:
         print(f"Chat error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # History endpoint
@@ -177,6 +179,8 @@ async def history_endpoint(session_id: str):
             })
         return {"history": formatted_history}
     except Exception as e:
+        print(f"History error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -193,6 +197,8 @@ async def generate_quiz(request: QuizRequest):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Quiz error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -249,6 +255,8 @@ async def download_report(session_data: Dict[str, Any]):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Report error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
