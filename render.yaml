@@ -6,7 +6,7 @@ services:
     runtime: python
     plan: free
     rootDir: .
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     healthCheckPath: /health
     envVars:
@@ -19,6 +19,10 @@ services:
       - key: CORS_ALLOW_ALL
         value: "true"
       - key: DATABASE_PATH
-        value: "conversations.db"
+        value: "/opt/render/project/src/conversations.db"
+      - key: VECTOR_INDEX_DIR
+        value: "/opt/render/project/src/backend/data/vectors"
+      - key: EMBEDDING_CACHE_DIR
+        value: "/opt/render/project/src/backend/data/embeddings"
       - key: OUTPUT_DIR
-        value: "outputs"
+        value: "/opt/render/project/src/outputs"
