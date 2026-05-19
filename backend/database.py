@@ -2,7 +2,9 @@ import sqlite3
 import os
 
 # Define the database path
-DB_PATH = os.path.join(os.path.dirname(__file__), "conversations.db")
+# Use /opt/render/project/src/data/conversations.db on Render if persistent disk is used
+# Otherwise, use the current directory in the backend folder
+DB_PATH = os.getenv("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "conversations.db"))
 
 def init_db():
     """Initializes the database and creates the table if it doesn't exist."""

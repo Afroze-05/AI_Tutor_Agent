@@ -373,7 +373,7 @@ class AgenticTutorSystem:
         if not is_technical_query(user_input):
             return {
                 "type": "non_technical_block",
-                "response": "I am an AI Tutor for technical knowledge (programming, engineering, and technology). Please ask a technical question.",
+                "message": "I am an AI Tutor for technical knowledge (programming, engineering, and technology). Please ask a technical question.",
                 "data": None
             }
         

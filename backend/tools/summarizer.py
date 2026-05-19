@@ -3,7 +3,7 @@ AI Summarizer Tool
 Uses Groq API for text summarization and Q&A
 """
 from typing import Dict, Any, List, Optional
-from config import Config
+from backend.config import Config
 
 class AISummarizer:
     """Groq-based text summarization and Q&A"""

@@ -1,22 +1,38 @@
 """
 Chat endpoints with RAG integration
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import time
+from collections import defaultdict
 
 from backend.services.rag_pipeline import RAGPipeline
-
+from backend.utils.intent_validator import is_technical_query, get_rejection_response
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 # Global RAG pipeline instance
 rag_pipeline = None
 
+# Simple Rate Limiting (In-memory)
+# Format: {ip_address: [timestamp1, timestamp2, ...]}
+rate_limit_data = defaultdict(list)
+RATE_LIMIT_WINDOW = 60  # 1 minute
+RATE_LIMIT_MAX_REQUESTS = 10  # 10 requests per minute
+
+def check_rate_limit(client_ip: str) -> bool:
+    """Check if the client has exceeded rate limit"""
+    now = time.time()
+    # Remove old timestamps
+    rate_limit_data[client_ip] = [t for t in rate_limit_data[client_ip] if now - t < RATE_LIMIT_WINDOW]
+    
+    if len(rate_limit_data[client_ip]) >= RATE_LIMIT_MAX_REQUESTS:
+        return False
+    
+    rate_limit_data[client_ip].append(now)
+    return True
 
 def get_rag_pipeline() -> RAGPipeline:
     """Get or create RAG pipeline instance"""
@@ -52,38 +68,66 @@ class SummaryResponse(BaseModel):
 
 
 @router.post("/query", response_model=ChatResponse)
-async def chat_with_rag(request: ChatRequest) -> Dict[str, Any]:
+async def chat_with_rag(request: ChatRequest, fastapi_request: Request) -> Dict[str, Any]:
     """
     Chat with RAG-enabled question answering
     
     Args:
         request: Chat request with message and RAG settings
+        fastapi_request: FastAPI request object for IP tracking
     
     Returns:
         Answer with sources
     """
     try:
-        if not request.message.strip():
+        # 1. Rate Limiting
+        client_ip = fastapi_request.client.host
+        if not check_rate_limit(client_ip):
+            return {
+                "answer": "⚠️ Rate limit exceeded. Please wait a minute before sending more messages.",
+                "sources": [],
+                "context_used": False,
+                "rag_enabled": False,
+                "error": "rate_limit_exceeded"
+            }
+
+        # 2. Basic Validation
+        message = request.message.strip()
+        if not message:
             raise HTTPException(
                 status_code=400,
                 detail="Message cannot be empty"
             )
         
+        # 3. Technical Intent Validation
+        is_tech, reason = is_technical_query(message)
+        if not is_tech:
+            return {
+                "answer": get_rejection_response(),
+                "sources": [],
+                "context_used": False,
+                "rag_enabled": False,
+                "method": "Intent Rejection"
+            }
+
         pipeline = get_rag_pipeline()
         
         if request.use_rag:
             # Use RAG pipeline
-            result = pipeline.query(request.message, top_k=request.top_k)
+            result = pipeline.query(message, top_k=request.top_k)
             
             return {
                 "answer": result['answer'],
                 "sources": result.get('sources', []),
                 "context_used": result.get('context_used', False),
                 "rag_enabled": True,
-                "chunks_retrieved": result.get('chunks_retrieved', 0)
+                "chunks_retrieved": result.get('chunks_retrieved', 0),
+                "method": result.get('method', 'rag')
             }
         else:
             # Fallback to basic response (without RAG)
+            # Even without RAG, we should use the pipeline to get a technical answer
+            # but maybe we want to force RAG for technical education
             return {
                 "answer": "RAG is disabled. Please enable RAG to get document-based answers.",
                 "sources": [],

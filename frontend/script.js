@@ -1,4 +1,4 @@
-const API_BASE = window.API_BASE || "http://127.0.0.1:8000";
+const API_BASE = window.API_BASE || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:8000' : '');
 
 // Elements
 const chatMessages = document.getElementById('chatMessages');
@@ -24,13 +24,243 @@ const downloadChatTxt = document.getElementById('downloadChatTxt');
 const downloadChatPdf = document.getElementById('downloadChatPdf');
 
 // State
-let sessionData = {
+const DEFAULT_SESSION = {
     chats: [],
     currentChatId: null,
     summary: [],
     quizzes: [],
     careerPath: null,
     resumeAnalysis: null
+};
+
+let sessionData = { ...DEFAULT_SESSION };
+
+/**
+ * STORAGE MANAGER
+ * Handles all interactions with localStorage
+ */
+const StorageManager = {
+    STORAGE_KEY: 'vidmentor_chat_session',
+
+    saveSession(data) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            console.error('Failed to save session to localStorage:', e);
+        }
+    },
+
+    loadSession() {
+        try {
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            if (!saved) return null;
+            
+            const parsed = JSON.parse(saved);
+            // Basic validation of corrupted data
+            if (!parsed || !Array.isArray(parsed.chats)) {
+                throw new Error('Invalid session format');
+            }
+            return parsed;
+        } catch (e) {
+            console.error('Error loading session:', e);
+            return null;
+        }
+    },
+
+    clearSession() {
+        localStorage.removeItem(this.STORAGE_KEY);
+    }
+};
+
+/**
+ * CHAT RENDERER
+ * Handles updating the UI for messages and chats
+ */
+const ChatRenderer = {
+    renderMessage(msg) {
+        const { role, message, isHtml, sources, timestamp } = msg;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${role === 'assistant' ? 'bot' : 'user'}-message`;
+        
+        let content = message;
+        
+        // Parse Markdown for assistant messages
+        if (role === 'assistant' && !isHtml) {
+            content = parseMarkdown(message);
+        }
+        
+        // Add sources section if available
+        let sourcesHtml = '';
+        if (sources && sources.length > 0) {
+            sourcesHtml = `<div class="sources-section" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div style="font-size: 0.8rem; color: var(--accent-purple); margin-bottom: 8px;">📚 Sources:</div>
+                ${sources.map((source) => `
+                    <div class="source-item" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px; padding: 4px 8px; background: rgba(147,51,234,0.1); border-radius: 4px;">
+                        <strong>${source.filename}</strong> (${source.location || 'Unknown'}) - Score: ${source.score}
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+        
+        // Add timestamp
+        const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const timeHtml = `<div class="msg-time" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 4px; text-align: ${role === 'assistant' ? 'left' : 'right'}">${timeStr}</div>`;
+
+        msgDiv.innerHTML = `<div class="msg-content">${content}${sourcesHtml}</div>${timeHtml}`;
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    },
+
+    clearDisplay() {
+        chatMessages.innerHTML = '';
+    },
+
+    showRestoreLoading() {
+        showLoader();
+    },
+
+    hideRestoreLoading() {
+        hideLoader();
+    }
+};
+
+/**
+ * HISTORY MANAGER
+ * Manages session logic, chat switching, and persistence triggers
+ */
+const HistoryManager = {
+    init() {
+        const savedSession = StorageManager.loadSession();
+        if (savedSession && savedSession.chats && savedSession.chats.length > 0) {
+            sessionData = savedSession;
+            this.restoreLastState();
+        } else {
+            this.createNewChat();
+        }
+
+        // Hook up clear chat button
+        if (clearChatBtn) {
+            clearChatBtn.onclick = () => {
+                if (confirm('Are you sure you want to clear ALL chat history? This cannot be undone.')) {
+                    this.clearAllHistory();
+                }
+            };
+        }
+
+        // Hook up new chat button
+        if (newChatBtn) {
+            newChatBtn.onclick = () => {
+                this.createNewChat();
+            };
+        }
+    },
+
+    restoreLastState() {
+        ChatRenderer.showRestoreLoading();
+        setTimeout(() => {
+            updateHistoryPanel();
+            if (sessionData.currentChatId) {
+                this.switchToChat(sessionData.currentChatId);
+            } else if (sessionData.chats.length > 0) {
+                this.switchToChat(sessionData.chats[0].id);
+            }
+            
+            // Restore summary if it exists in current chat
+            const currentChat = this.getCurrentChat();
+            if (currentChat && currentChat.summary) {
+                updateSummaryDisplay(currentChat.summary);
+            }
+            
+            ChatRenderer.hideRestoreLoading();
+        }, 300); // Small delay for smooth transition
+    },
+
+    addMessage(role, text, isHtml = false, sources = []) {
+        const currentChat = this.getCurrentChat();
+        const messageObj = {
+            role: role === 'bot' ? 'assistant' : role,
+            message: text,
+            timestamp: new Date().toISOString(),
+            isHtml,
+            sources
+        };
+
+        currentChat.messages.push(messageObj);
+        ChatRenderer.renderMessage(messageObj);
+        StorageManager.saveSession(sessionData);
+        updatePdfButtonState();
+    },
+
+    createNewChat() {
+        const newChatId = 'chat_' + Date.now();
+        const newChat = {
+            id: newChatId,
+            title: 'New Chat',
+            messages: [],
+            createdAt: new Date().toISOString(),
+            summary: null
+        };
+        
+        sessionData.chats.unshift(newChat); // Add to beginning
+        sessionData.currentChatId = newChatId;
+        StorageManager.saveSession(sessionData);
+        
+        ChatRenderer.clearDisplay();
+        updateHistoryPanel();
+        
+        // Reset summary display
+        const summaryContent = document.getElementById('summaryList');
+        if (summaryContent) summaryContent.innerHTML = '<p class="empty-text">No summary available for this chat</p>';
+        
+        return newChatId;
+    },
+
+    switchToChat(chatId) {
+        sessionData.currentChatId = chatId;
+        const chat = sessionData.chats.find(c => c.id === chatId);
+        
+        if (chat) {
+            ChatRenderer.clearDisplay();
+            chat.messages.forEach(msg => {
+                ChatRenderer.renderMessage(msg);
+            });
+            
+            // Restore summary
+            const summaryContent = document.getElementById('summaryList');
+            if (summaryContent) {
+                if (chat.summary) {
+                    updateSummaryDisplay(chat.summary);
+                } else {
+                    summaryContent.innerHTML = '<p class="empty-text">No summary available for this chat</p>';
+                }
+            }
+            
+            updateHistoryPanel();
+            StorageManager.saveSession(sessionData);
+        }
+    },
+
+    getCurrentChat() {
+        if (!sessionData.currentChatId || !sessionData.chats.find(c => c.id === sessionData.currentChatId)) {
+            if (sessionData.chats.length > 0) {
+                sessionData.currentChatId = sessionData.chats[0].id;
+            } else {
+                return this.createNewChat();
+            }
+        }
+        return sessionData.chats.find(c => c.id === sessionData.currentChatId);
+    },
+
+    clearAllHistory() {
+        StorageManager.clearSession();
+        sessionData = { ...DEFAULT_SESSION, chats: [] };
+        ChatRenderer.clearDisplay();
+        updateHistoryPanel();
+        this.createNewChat();
+        
+        // Notify backend to clear its memory too
+        fetch(`${API_BASE}/chat/clear-memory`, { method: 'POST' }).catch(console.error);
+    }
 };
 
 // --- Initialization ---
@@ -47,44 +277,47 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 const showLoader = () => loader.classList.remove('hidden');
 const hideLoader = () => loader.classList.add('hidden');
 
+/**
+ * TECHNICAL INTENT VALIDATOR (Frontend Layer)
+ */
+const TechnicalValidator = {
+    TECH_KEYWORDS: [
+        'python', 'javascript', 'js', 'java', 'c++', 'c#', 'rust', 'golang', 'html', 'css', 'sql',
+        'ml', 'ai', 'machine learning', 'deep learning', 'llm', 'react', 'api', 'backend', 'frontend',
+        'database', 'cloud', 'devops', 'dsa', 'algorithm', 'code', 'programming', 'debug'
+    ],
+    
+    REJECTED_KEYWORDS: [
+        'biryani', 'pizza', 'food', 'recipe', 'cook', 'football', 'cricket', 'movie', 'film',
+        'politics', 'religion', 'dating', 'love'
+    ],
+
+    isTechnical(text) {
+        const lowerText = text.toLowerCase();
+        
+        // Basic keyword check
+        const hasTech = this.TECH_KEYWORDS.some(k => lowerText.includes(k));
+        const hasRejected = this.REJECTED_KEYWORDS.some(k => lowerText.includes(k));
+        
+        if (hasRejected && !hasTech) return false;
+        
+        // If it's a very short query without tech keywords, it's likely general chit-chat
+        if (text.split(' ').length < 2 && !hasTech) return false;
+        
+        return true;
+    },
+
+    getRejectionMessage() {
+        return "❌ This AI Tutor is restricted to technical and programming-related topics only. Please ask about coding, AI, ML, web development, software engineering, or related technical concepts.";
+    }
+};
+
 function appendMessage(role, content, isHtml = false, sources = []) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${role}-message`;
-    
-    let messageContent = content;
-    
-    // Parse Markdown for bot messages
-    if (role === 'bot' && !isHtml) {
-        messageContent = parseMarkdown(content);
-        isHtml = true;
-    }
-    
-    // Add sources section if available
-    if (sources && sources.length > 0) {
-        messageContent += `<div class="sources-section" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
-            <div style="font-size: 0.8rem; color: var(--accent-purple); margin-bottom: 8px;">📚 Sources:</div>
-            ${sources.map((source, i) => `
-                <div class="source-item" style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px; padding: 4px 8px; background: rgba(147,51,234,0.1); border-radius: 4px;">
-                    <strong>${source.filename}</strong> (${source.location}) - Score: ${source.score}
-                </div>
-            `).join('')}
-        </div>`;
-    }
-    
-    if (isHtml) {
-        msgDiv.innerHTML = `<div class="msg-content">${messageContent}</div>`;
-    } else {
-        msgDiv.textContent = content;
-    }
-    chatMessages.appendChild(msgDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    
-    // Add to current chat
+    // Integration with new HistoryManager
+    HistoryManager.addMessage(role, content, isHtml, sources);
+
     if (role === 'user' || role === 'bot') {
-        const currentChat = getCurrentChat();
-        currentChat.messages.push({ role, content, isHtml, sources });
         updateHistoryPanel();
-        updatePdfButtonState();
     }
 }
 
@@ -118,47 +351,6 @@ function parseMarkdown(text) {
 }
 
 // --- Chat Management ---
-function createNewChat() {
-    const newChatId = 'chat_' + Date.now();
-    const newChat = {
-        id: newChatId,
-        title: 'New Chat',
-        messages: [],
-        createdAt: new Date().toISOString()
-    };
-    
-    sessionData.chats.push(newChat);
-    sessionData.currentChatId = newChatId;
-    
-    // Clear chat window
-    chatMessages.innerHTML = '';
-    
-    updateHistoryPanel();
-    return newChatId;
-}
-
-function switchToChat(chatId) {
-    sessionData.currentChatId = chatId;
-    const chat = sessionData.chats.find(c => c.id === chatId);
-    
-    if (chat) {
-        // Clear current chat window
-        chatMessages.innerHTML = '';
-        
-        // Load chat messages
-        chat.messages.forEach(msg => {
-            appendMessage(msg.role, msg.content, msg.isHtml || false, msg.sources || []);
-        });
-    }
-}
-
-function getCurrentChat() {
-    if (!sessionData.currentChatId) {
-        return createNewChat();
-    }
-    return sessionData.chats.find(c => c.id === sessionData.currentChatId);
-}
-
 function updateChatTitle(chatId, message) {
     const chat = sessionData.chats.find(c => c.id === chatId);
     if (chat && chat.title === 'New Chat') {
@@ -170,6 +362,7 @@ function updateChatTitle(chatId, message) {
         
         chat.title = title.length > 30 ? title.substring(0, 27) + '...' : title;
         updateHistoryPanel();
+        StorageManager.saveSession(sessionData);
     }
 }
 
@@ -177,6 +370,14 @@ function updateChatTitle(chatId, message) {
 async function sendMessage() {
     const text = userInput.value.trim();
     if (!text) return;
+
+    // Check for technical intent (Frontend Layer)
+    if (!TechnicalValidator.isTechnical(text)) {
+        appendMessage('user', text);
+        appendMessage('bot', TechnicalValidator.getRejectionMessage());
+        userInput.value = "";
+        return;
+    }
 
     // Check for quiz intent
     const quizMatch = text.match(/quiz\s+on\s+(.+)/i);
@@ -187,7 +388,7 @@ async function sendMessage() {
     }
 
     // Ensure we have a current chat
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     
     // Check if this is the first user message
     const isFirstMessage = currentChat.messages.length === 0;
@@ -210,15 +411,24 @@ async function sendMessage() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({message: text, use_rag: true, top_k: 3})
         });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Server error');
+        }
+
         const data = await response.json();
         
         if (data.answer) {
             appendMessage('bot', data.answer, false, data.sources || []);
+        } else if (data.error === 'rate_limit_exceeded') {
+            appendMessage('bot', '⚠️ ' + data.answer);
         } else {
             appendMessage('bot', 'Sorry, I couldn\'t process your request.');
         }
     } catch (e) {
-        appendMessage('bot', 'Connection error. Please try again.');
+        console.error('Chat error:', e);
+        appendMessage('bot', `❌ Error: ${e.message || 'Connection error. Please try again.'}`);
     } finally {
         hideLoader();
     }
@@ -226,7 +436,7 @@ async function sendMessage() {
 
 // --- Enhanced Quiz System ---
 async function startQuizFlow(topic) {
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     
     // Store quiz state
     currentChat.quizState = {
@@ -256,7 +466,7 @@ async function startQuizFlow(topic) {
 }
 
 async function selectQuizDifficulty(level) {
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     if (!currentChat.quizState) return;
     
     currentChat.quizState.level = level;
@@ -316,7 +526,7 @@ async function selectQuizDifficulty(level) {
 }
 
 function showQuizQuestion() {
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     if (!currentChat.quizState) return;
     
     const { questions, currentIndex, score } = currentChat.quizState;
@@ -346,7 +556,7 @@ function showQuizQuestion() {
 }
 
 async function selectAnswer(selectedIndex) {
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     if (!currentChat.quizState) return;
     
     const { questions, currentIndex } = currentChat.quizState;
@@ -387,7 +597,7 @@ async function selectAnswer(selectedIndex) {
 }
 
 function showQuizResult() {
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     if (!currentChat.quizState) return;
     
     const { score, questions, topic, level } = currentChat.quizState;
@@ -423,7 +633,7 @@ function showQuizResult() {
 }
 
 function resetQuiz() {
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     currentChat.quizState = null;
     
     const quizArea = document.getElementById('quizArea');
@@ -458,10 +668,11 @@ function updateSummaryDisplay(summary) {
             </div>
         `;
         // Store summary in current chat for PDF generation
-        const currentChat = getCurrentChat();
+        const currentChat = HistoryManager.getCurrentChat();
         if (currentChat) {
             currentChat.summary = summary;
         }
+        StorageManager.saveSession(sessionData);
         // Update PDF button state when summary is added
         updatePdfButtonState();
     }
@@ -558,7 +769,7 @@ function updateHistoryPanel() {
 
     const historyHtml = sessionData.chats.map(chat => `
         <div class="history-item ${chat.id === sessionData.currentChatId ? 'active' : ''}" 
-             onclick="switchToChat('${chat.id}')"
+             onclick="HistoryManager.switchToChat('${chat.id}')"
              style="cursor: pointer; padding: 8px; margin: 4px 0; border-radius: 6px; 
                     ${chat.id === sessionData.currentChatId ? 'background: rgba(147,51,234,0.2);' : 'background: rgba(255,255,255,0.05);'}">
             <span>${chat.title}</span>
@@ -731,7 +942,7 @@ downloadBtn.onclick = async () => {
 
 // Function to update PDF button state
 function updatePdfButtonState() {
-    const currentChat = getCurrentChat();
+    const currentChat = HistoryManager.getCurrentChat();
     const hasMessages = currentChat && currentChat.messages.length > 0;
     const hasSummary = document.getElementById('summaryList').innerHTML.includes('<div class="summary-item">');
     
@@ -902,64 +1113,28 @@ async function updateDocumentList() {
 }
 
 // --- Event Listeners ---
-sendBtn.addEventListener('click', sendMessage);
 
-userInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        sendMessage();
-    }
+// Initialize app on load
+window.addEventListener('load', () => {
+    userInput.focus();
+    
+    // Initialize components
+    setTimeout(() => {
+        initializeDocumentUpload();
+        initializeClearDocumentsBtn();
+        initializeChatDownloadButtons();
+        updateDocumentList(); // Load document list on startup
+        HistoryManager.init(); // Initialize persistence manager
+        updatePdfButtonState(); // Initialize PDF button state
+        console.log('AI Tutor Frontend Loaded with STRICT technical focus and persistent history');
+    }, 100);
 });
 
-clearChatBtn.addEventListener('click', async () => {
-    if (!confirm('Clear all session data?')) return;
-    showLoader();
-    try {
-        await fetch(`${API_BASE}/chat/clear-memory`, { method: 'POST' });
-        location.reload();
-    } catch (e) {
-        alert('Failed to clear session.');
-    } finally {
-        hideLoader();
-    }
-});
-
-// Event Listeners
+// Chat input listeners
 sendBtn.onclick = sendMessage;
 userInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
     }
-});
-
-clearChatBtn.onclick = () => {
-    if (confirm('Clear all chat history? This cannot be undone.')) {
-        sessionData.chats = [];
-        sessionData.currentChatId = null;
-        chatMessages.innerHTML = '';
-        updateHistoryPanel();
-        appendMessage('bot', 'Chat history cleared. How can I help you today?');
-    }
-};
-
-newChatBtn.onclick = () => {
-    createNewChat();
-    appendMessage('bot', 'New chat started! How can I help you today?');
-};
-
-// Auto-focus input on load
-window.addEventListener('load', () => {
-    userInput.focus();
-    
-    // Initialize RAG elements after DOM is ready
-    setTimeout(() => {
-        initializeDocumentUpload();
-        initializeClearDocumentsBtn();
-        initializeChatDownloadButtons();
-        updateDocumentList(); // Load document list on startup
-        createNewChat(); // Start with a new chat
-        updatePdfButtonState(); // Initialize PDF button state
-        console.log('AI Tutor Frontend Loaded with RAG capabilities + Chat Summary + Multiple Chats + PDF Fix');
-    }, 100);
 });

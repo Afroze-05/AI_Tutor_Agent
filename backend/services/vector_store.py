@@ -22,7 +22,9 @@ class VectorStore:
             index_dir: Directory to store FAISS index and metadata
             dimension: Embedding dimension (384 for all-MiniLM-L6-v2)
         """
-        self.index_dir = index_dir or os.path.join(os.path.dirname(__file__), "..", "data", "vectors")
+        # Allow environment variable override for production (e.g. persistent disk path)
+        default_dir = os.path.join(os.path.dirname(__file__), "..", "data", "vectors")
+        self.index_dir = index_dir or os.getenv("VECTOR_INDEX_DIR", default_dir)
         self.dimension = dimension
         self.index = None
         self.metadata = []

@@ -9,10 +9,6 @@ import tempfile
 import shutil
 from pathlib import Path
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from backend.utils.file_loader import FileLoader
 from backend.utils.text_splitter import TextSplitter
 from backend.services.rag_pipeline import RAGPipeline

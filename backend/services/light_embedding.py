@@ -22,7 +22,8 @@ class LightEmbeddingService:
         Args:
             cache_dir: Directory to cache embeddings
         """
-        self.cache_dir = cache_dir or os.path.join(os.path.dirname(__file__), "..", "data", "embeddings")
+        default_dir = os.path.join(os.path.dirname(__file__), "..", "data", "embeddings")
+        self.cache_dir = cache_dir or os.getenv("EMBEDDING_CACHE_DIR", default_dir)
         self.embedding_cache = {}
         self.vocab = {}  # For TF-IDF
         self.idf_cache = {}

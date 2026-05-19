@@ -144,22 +144,37 @@ aside {
 .bot-info h1 { font-size: 1rem; }
 .bot-info p { font-size: 0.75rem; color: var(--text-dim); }
 
+.msg-time {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+.bot-message .msg-time {
+    text-align: left;
+}
+
+.user-message .msg-time {
+    text-align: right;
+}
+
 /* Custom Scrollbar - Apply to all scrollable elements */
 *::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
 }
 
 *::-webkit-scrollbar-track {
-    background: var(--navy-black);
+    background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
-    background: var(--accent-purple);
+    background: var(--border-color);
     border-radius: 10px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-    background: #a855f7;
+    background: var(--text-dim);
 }
 
 /* Chat Messages - ensure smooth scrolling */

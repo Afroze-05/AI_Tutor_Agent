@@ -1,5 +1,5 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
-# After deploy, set GROQ_API_KEY in the Render dashboard for ai-tutor-backend.
+# Deployment for AI Tutor Backend
 services:
   - type: web
     name: ai-tutor-backend
@@ -7,7 +7,7 @@ services:
     plan: free
     rootDir: .
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -16,26 +16,9 @@ services:
         sync: false
       - key: SERVE_STATIC
         value: "false"
-      - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: ai-tutor-frontend
-          envVarKey: RENDER_EXTERNAL_URL
-      - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: ai-tutor-frontend
-          envVarKey: RENDER_EXTERNAL_URL
-
-  - type: web
-    name: ai-tutor-frontend
-    runtime: static
-    rootDir: frontend
-    buildCommand: chmod +x ./build.sh && ./build.sh
-    staticPublishPath: .
-    envVars:
-      - key: AI_TUTOR_BACKEND_HOST
-        fromService:
-          type: web
-          name: ai-tutor-backend
-          property: host
+      - key: CORS_ALLOW_ALL
+        value: "true"
+      - key: DATABASE_PATH
+        value: "conversations.db"
+      - key: OUTPUT_DIR
+        value: "outputs"

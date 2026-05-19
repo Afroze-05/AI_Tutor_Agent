@@ -33,18 +33,28 @@ def _cors_origins() -> List[str]:
     frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
     if frontend_url:
         origins.append(frontend_url)
+        # Also allow the netlify/vercel/onrender domain variations if provided
+    
     extra = os.getenv("CORS_ORIGINS", "").strip()
     if extra:
         origins.extend(o.strip().rstrip("/") for o in extra.split(",") if o.strip())
+    
     # Local development defaults
     origins.extend([
         "http://127.0.0.1:8000",
         "http://localhost:8000",
         "http://127.0.0.1:5500",
         "http://localhost:5500",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
     ])
-    if not origins or os.getenv("CORS_ALLOW_ALL", "").lower() in ("1", "true", "yes"):
+    
+    # Check if we are in production
+    is_prod = os.getenv("RENDER", "false").lower() == "true"
+    
+    if not is_prod or os.getenv("CORS_ALLOW_ALL", "").lower() in ("1", "true", "yes"):
         return ["*"]
+        
     return list(dict.fromkeys(origins))
 
 
@@ -118,10 +128,14 @@ async def serve_frontend():
         return FileResponse(index_path)
     return JSONResponse({"error": "Frontend not found at " + index_path}, status_code=404)
 
-# Chat endpoint
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     try:
+        # Check if the user is asking for a quiz (to maintain original agent flow if needed)
+        # However, the frontend script.js handles "quiz on" by calling /quiz/generate
+        # and standard chat by calling /chat/query.
+        # This /chat endpoint seems to be a fallback or for the original non-RAG logic.
+        
         # Process the input with the agentic system
         response = ai_system.process_input(request.message)
         
